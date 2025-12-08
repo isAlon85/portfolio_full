@@ -102,7 +102,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       TZ: Europe/Madrid # Zona horaria (opcional)
     volumes:
-      - ./backups:/backup
+      - backups_data:/backup
     networks:
       - portfolio_network
     # Añadir un init system para gestionar correctamente los procesos (como cron)
@@ -115,6 +115,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  backups_data:
     driver: local
   redis_data:
     driver: local
