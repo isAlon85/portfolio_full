@@ -1,34 +1,27 @@
 version: "3.8"
 
 services:
-  mysql:
-    image: mysql:8.0
-    command:
-      # Establece el plugin de autenticación moderno y el conjunto de caracteres recomendado.
-      - --default-authentication-plugin=caching_sha2_password
-      - --character-set-server=utf8mb4
-    container_name: mysql_db
+  postgres:
+    build: ./postgres # Construye la imagen desde la carpeta 'postgres'
+    container_name: postgres_db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - mysql_data:/var/lib/mysql
-      # Montar archivo de configuración personalizado
-      - ./mysql/my.cnf:/etc/mysql/conf.d/custom.cnf # Configuración del servidor
-      - ./mysql/healthcheck.cnf:/etc/mysql/conf.d/healthcheck.cnf # Configuración para el healthcheck
+      - postgres_data:/var/lib/postgresql/data
+      # Monta el script SQL para crear el esquema de la base de datos
+      - ./backend/src/infrastructure/database/migrations/001-initial-schema.sql:/docker-entrypoint-initdb.d/02-initial-schema.sql
     ports:
       # Expone el puerto 3306 del contenedor al puerto especificado en el host.
       # IMPORTANTE: "127.0.0.1" restringe el acceso a este puerto solo desde el propio servidor.
-      - "127.0.0.1:${DB_PORT_EXTERNAL}:3306"
+      - "127.0.0.1:${DB_PORT_EXTERNAL}:5432"
     networks:
       - portfolio_network
     healthcheck:
-      # El comando ahora es limpio. mysqladmin leerá las credenciales desde
-      # los archivos .cnf montados en /etc/mysql/conf.d/
-      test: ["CMD", "mysqladmin", "ping"]
+      # Comprueba si el servidor de PostgreSQL está listo para aceptar conexiones.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -58,11 +51,11 @@ services:
     container_name: backend
     environment:
       NODE_ENV: production
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: ${MYSQL_USER}
-      DB_PASSWORD: ${MYSQL_PASSWORD}
-      DB_NAME: ${MYSQL_DATABASE}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET}
@@ -71,7 +64,7 @@ services:
     networks:
       - portfolio_network
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -103,10 +96,10 @@ services:
       dockerfile: Dockerfile
     container_name: db_backup
     environment:
-      MYSQL_HOST: mysql
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       TZ: Europe/Madrid # Zona horaria (opcional)
     volumes:
       - ./backups:/backup
@@ -116,12 +109,12 @@ services:
     # y evitar errores de permisos como "setpgid: Operation not permitted".
     init: true
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
     restart: unless-stopped
 
 volumes:
-  mysql_data:
+  postgres_data:
     driver: local
   redis_data:
     driver: local

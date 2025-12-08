@@ -1,29 +1,21 @@
-FROM alpine:3.19
+# Usar una imagen base ligera de Alpine
+FROM alpine:3.18
 
-# Instalar herramientas necesarias
-RUN apk update && apk add --no-cache \
-    mysql-client \
-    dcron \
-    bash \
-    gzip \
-    && rm -rf /var/cache/apk/*
+# Instalar el cliente de PostgreSQL (para pg_dump) y cron
+# openrc es necesario para gestionar los servicios de cron
+RUN apk add --no-cache postgresql-client dcron
 
-# Crear usuario sin privilegios
-RUN addgroup -S backupgroup && \
-    adduser -S -H -s /bin/false -G backupgroup backupuser
+# Crear el directorio para el log de cron
+RUN mkdir -p /var/log/cron && touch /var/log/cron.log
 
-# Crear directorios con permisos
-RUN mkdir -p /backup /var/log && \
-    chown -R backupuser:backupgroup /backup /var/log
-
-# Copiar script de backup
+# Copiar el script de backup al contenedor
 COPY backup.sh /usr/local/bin/backup.sh
-RUN chmod +x /usr/local/bin/backup.sh && \
-    chown backupuser:backupgroup /usr/local/bin/backup.sh
 
-# Configurar crontab
+# Dar permisos de ejecución al script
+RUN chmod +x /usr/local/bin/backup.sh
+
+# Copiar el archivo crontab para programar la tarea
 COPY crontab /etc/crontabs/root
-RUN chmod 0644 /etc/crontabs/root
 
-# Ejecutar crond con -S para deshabilitar setpgid
-CMD ["crond", "-f", "-l", "2", "-S"]
+# Comando para iniciar el demonio de cron en primer plano
+CMD ["crond", "-f", "-l", "8", "-L", "/var/log/cron.log"]

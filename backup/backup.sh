@@ -1,38 +1,28 @@
-#!/bin/bash
+#!/bin/sh
+
+# Salir inmediatamente si un comando falla
 set -e
 
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="/backup/portfolio_${TIMESTAMP}.sql.gz"
+# Variables de entorno ya están disponibles desde docker-compose.yml
+# POSTGRES_HOST, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
 
-echo "[$(date)] Starting MySQL backup..."
+echo "Iniciando backup de la base de datos: ${POSTGRES_DB}"
 
-# Verificar que las variables de entorno existen
-if [ -z "$MYSQL_HOST" ] || [ -z "$MYSQL_USER" ] || [ -z "$MYSQL_PASSWORD" ] || [ -z "$MYSQL_DATABASE" ]; then
-    echo "[$(date)] ERROR: Missing required environment variables"
-    exit 1
-fi
+# Formato del nombre del archivo de backup
+FILENAME="backup-$(date +%Y-%m-%dT%H-%M-%S).sql.gz"
+BACKUP_PATH="/backup/${FILENAME}"
 
-# Realizar backup con mysqldump
-mysqldump -h "${MYSQL_HOST}" \
-          -u "${MYSQL_USER}" \
-          -p"${MYSQL_PASSWORD}" \
-          --single-transaction \
-          --routines \
-          --triggers \
-          --databases "${MYSQL_DATABASE}" \
-          2>/dev/null | gzip > "${BACKUP_FILE}"
+# Exportar la contraseña para que pg_dump la utilice de forma segura
+export PGPASSWORD=$POSTGRES_PASSWORD
 
-# Verificar que el backup se creó correctamente
-if [ -f "${BACKUP_FILE}" ] && [ -s "${BACKUP_FILE}" ]; then
-    echo "[$(date)] Backup completed successfully: ${BACKUP_FILE}"
-    echo "[$(date)] Backup size: $(du -h ${BACKUP_FILE} | cut -f1)"
-else
-    echo "[$(date)] ERROR: Backup failed or file is empty"
-    exit 1
-fi
+# Ejecutar pg_dump y comprimir la salida con gzip
+pg_dump -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -w --clean | gzip > "$BACKUP_PATH"
 
-# Listar backups existentes
-echo "[$(date)] Current backups:"
-ls -lh /backup/portfolio_*.sql.gz 2>/dev/null || echo "No backups found"
+# Limpiar la variable de contraseña
+unset PGPASSWORD
 
-exit 0
+# Limpiar backups antiguos, manteniendo solo los últimos 7
+echo "Limpiando backups antiguos..."
+ls -t /backup/backup-*.sql.gz | tail -n +8 | xargs -r rm --
+
+echo "Backup completado exitosamente: ${FILENAME}"

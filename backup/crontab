@@ -1,5 +1,3 @@
-# Ejecutar backup diario a las 2:00 AM como usuario backupuser
-0 2 * * * su-exec backupuser /usr/local/bin/backup.sh >> /var/log/cron.log 2>&1
-
-# Limpiar backups antiguos (más de 7 días) a las 3:00 AM
-0 3 * * * su-exec backupuser find /backup -name "portfolio_*.sql.gz" -mtime +7 -delete >> /var/log/cron.log 2>&1
+# Ejecutar el script de backup todos los días a las 3:00 AM
+# Redirige la salida estándar y de error al log de cron para depuración
+0 3 * * * /usr/local/bin/backup.sh >> /var/log/cron.log 2>&1
