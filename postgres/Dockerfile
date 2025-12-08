@@ -1,5 +1,8 @@
 # Usar la imagen oficial de PostgreSQL 16 como base
-FROM postgres:16
+FROM postgres:16-alpine
+
+# Instalar openssl, ya que no viene en la imagen alpine y es necesario para generar los certificados.
+RUN apk add --no-cache openssl
 
 # Copiar el script de inicialización SSL al directorio de inicialización del contenedor.
 # La instrucción COPY preserva los permisos del archivo de origen si es posible,

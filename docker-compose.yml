@@ -21,7 +21,7 @@ services:
       - portfolio_network
     healthcheck:
       # Comprueba si el servidor de PostgreSQL está listo para aceptar conexiones.
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U portfolio_user -d portfolio_db"]
       interval: 10s
       timeout: 5s
       retries: 5
