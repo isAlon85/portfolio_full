@@ -1,0 +1,131 @@
+version: "3.8"
+
+services:
+  mysql:
+    image: mysql:8.0
+    command:
+      # Establece el plugin de autenticación moderno y el conjunto de caracteres recomendado.
+      - --default-authentication-plugin=caching_sha2_password
+      - --character-set-server=utf8mb4
+    container_name: mysql_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      # Montar archivo de configuración personalizado
+      - ./mysql/my.cnf:/etc/mysql/conf.d/custom.cnf # Configuración del servidor
+      - ./mysql/healthcheck.cnf:/etc/mysql/conf.d/healthcheck.cnf # Configuración para el healthcheck
+    ports:
+      # Expone el puerto 3306 del contenedor al puerto especificado en el host.
+      # IMPORTANTE: "127.0.0.1" restringe el acceso a este puerto solo desde el propio servidor.
+      - "127.0.0.1:${DB_PORT_EXTERNAL}:3306"
+    networks:
+      - portfolio_network
+    healthcheck:
+      # El comando ahora es limpio. mysqladmin leerá las credenciales desde
+      # los archivos .cnf montados en /etc/mysql/conf.d/
+      test: ["CMD", "mysqladmin", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    build: ./redis
+    container_name: redis_cache
+    restart: unless-stopped
+    env_file: .env # Añadir para que la variable de entorno esté disponible para el comando de sustitución
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: >
+      sh -c "envsubst < /usr/local/etc/redis/redis.conf > /tmp/redis.conf && redis-server /tmp/redis.conf"
+    networks:
+      - portfolio_network
+    healthcheck:
+      test: ["CMD", "sh", "-c", "redis-cli -a $$REDIS_PASSWORD ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    environment:
+      NODE_ENV: production
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      PORT: 3000
+    networks:
+      - portfolio_network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+    container_name: frontend_app
+    restart: unless-stopped
+    networks:
+      - portfolio_network
+    depends_on:
+      - backend
+    # Nginx no tiene un healthcheck simple por defecto, pero se puede añadir un endpoint en Nginx si es necesario.
+
+  backup:
+    build:
+      context: ./backup
+      dockerfile: Dockerfile
+    container_name: db_backup
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      TZ: Europe/Madrid # Zona horaria (opcional)
+    volumes:
+      - ./backups:/backup
+    networks:
+      - portfolio_network
+    # Añadir un init system para gestionar correctamente los procesos (como cron)
+    # y evitar errores de permisos como "setpgid: Operation not permitted".
+    init: true
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  portfolio_network:
+    driver: bridge

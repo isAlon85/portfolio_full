@@ -1,0 +1,4 @@
+[mysqladmin]
+user=root
+password=${MYSQL_ROOT_PASSWORD}
+host=localhost

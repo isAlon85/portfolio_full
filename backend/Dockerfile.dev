@@ -1,0 +1,24 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Instalar dependencias de compilación para paquetes como bcrypt,
+# y curl para el healthcheck.
+# python3, make, y g++ son necesarios para node-gyp.
+RUN apk add --no-cache curl python3 make g++
+
+# Copiar archivos de dependencias
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Instalar TODAS las dependencias (incluyendo devDependencies)
+RUN npm ci
+
+# Copiar el resto del código fuente
+COPY src ./src
+
+# Exponer puerto
+EXPOSE 3000
+
+# Comando de desarrollo con ts-node-dev
+CMD ["npm", "run", "dev"]

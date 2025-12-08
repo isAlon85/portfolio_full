@@ -1,0 +1,69 @@
+# =================================================================
+# Archivos de Docker
+# =================================================================
+
+# Ignorar archivos de docker-compose para entornos específicos
+docker-compose.override.yml
+docker-compose.local.yml
+
+# =================================================================
+# General
+# =================================================================
+
+# Archivos de entorno. ¡NUNCA subir .env a un repositorio público!
+# Se mantiene .env.example para que otros desarrolladores sepan qué variables se necesitan.
+.env
+.env.*
+!.env.example
+
+# Archivos de registro (logs)
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Directorios de dependencias
+node_modules/
+
+# Archivos de sistema operativo
+.DS_Store
+Thumbs.db
+
+# Archivos de configuración de editores e IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# =================================================================
+# Backend (Node.js / Express)
+# =================================================================
+
+# Logs específicos del backend
+backend/logs/
+
+# =================================================================
+# Frontend (React 19 / Vite)
+# =================================================================
+
+# Directorio de build de Vite
+frontend/dist/
+
+# Cache de Vite
+frontend/.vite/
+
+# =================================================================
+# Backups
+# =================================================================
+
+# Ignorar el contenido del directorio de backups
+backups/*
+!backups/.gitkeep
+
+# Ignorar info
+.dbaccessinfo
