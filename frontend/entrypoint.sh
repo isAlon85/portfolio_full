@@ -16,7 +16,9 @@ if [ -f "$SECRET_FILE_PATH" ]; then
   API_URL=$(cat "$SECRET_FILE_PATH")
   echo "Inyectando la URL de la API en los archivos estáticos..."
   # Buscar y reemplazar el placeholder en todos los archivos JS y CSS
-  find "$ROOT_DIR" -type f -name '*.js' -o -name '*.css' | xargs sed -i "s|$PLACEHOLDER|$API_URL|g"
+  # Usar -exec en lugar de xargs para mayor robustez y compatibilidad.
+  # El delimitador '#' en sed evita conflictos si la URL contiene '/'.
+  find "$ROOT_DIR" -type f \( -name '*.js' -o -name '*.css' \) -exec sed -i "s#$PLACEHOLDER#$API_URL#g" {} +
 else
   echo "Advertencia: No se encontró el archivo de secreto en $SECRET_FILE_PATH. Usando valores por defecto."
 fi

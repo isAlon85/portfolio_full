@@ -4,10 +4,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copia los archivos de definición de paquetes.
+# Copia los archivos de definición de paquetes para aprovechar el cacheo de capas.
 COPY package*.json ./
 
-# Instala las dependencias de forma limpia y reproducible.
+# Instala solo las dependencias de producción si es posible, o usa 'ci' para una instalación limpia.
 RUN npm ci
 
 # Copia el resto del código fuente.

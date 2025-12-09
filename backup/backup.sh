@@ -29,8 +29,11 @@ BACKUP_PATH="/backup/${FILENAME}"
 # pg_dump utilizará automáticamente las variables de entorno PG*
 pg_dump -w --clean | gzip > "$BACKUP_PATH"
 
-# Limpiar la variable de contraseña
+# Limpiar todas las variables de entorno de conexión por higiene y seguridad.
 unset PGPASSWORD
+unset PGUSER
+unset PGDATABASE
+unset PGHOST
 
 # Limpiar backups antiguos, manteniendo solo los últimos 7
 echo "Limpiando backups antiguos..."

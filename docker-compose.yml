@@ -19,7 +19,7 @@ services:
       # Monta el script SQL para crear el esquema de la base de datos
       - ./backend/src/infrastructure/database/migrations/001-initial-schema.sql:/docker-entrypoint-initdb.d/02-initial-schema.sql
     ports:
-      # Expone el puerto 3306 del contenedor al puerto especificado en el host.
+      # Expone el puerto 5432 del contenedor al puerto especificado en el host.
       # IMPORTANTE: "127.0.0.1" restringe el acceso a este puerto solo desde el propio servidor.
       - "127.0.0.1:${DB_PORT_EXTERNAL}:5432"
     networks:
@@ -145,12 +145,10 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
-    driver: local
-  backups_data:
-    driver: local
-  redis_data:
-    driver: local
+  # El driver 'local' es el predeterminado, por lo que su definición explícita es opcional.
+  postgres_data: {}
+  backups_data: {}
+  redis_data: {}
 
 networks:
   portfolio_network:
