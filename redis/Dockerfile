@@ -1,5 +1,4 @@
 FROM redis:7-alpine
 
-# envsubst es parte del paquete gettext.
-# Lo instalamos para permitir la sustitución de variables de entorno en el archivo de configuración.
-RUN apk add --no-cache gettext
+# No se necesitan paquetes adicionales ya que la configuración
+# se pasa por argumentos de línea de comando en docker-compose.yml.

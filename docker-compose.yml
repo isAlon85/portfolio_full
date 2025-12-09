@@ -5,10 +5,15 @@ services:
     build: ./postgres # Construye la imagen desde la carpeta 'postgres'
     container_name: postgres_db
     restart: unless-stopped
+    secrets:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Las variables se leen desde los archivos de secrets montados por Docker
+      POSTGRES_USER_FILE: /run/secrets/POSTGRES_USER
+      POSTGRES_PASSWORD_FILE: /run/secrets/POSTGRES_PASSWORD
+      POSTGRES_DB_FILE: /run/secrets/POSTGRES_DB
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # Monta el script SQL para crear el esquema de la base de datos
@@ -21,7 +26,12 @@ services:
       - portfolio_network
     healthcheck:
       # Comprueba si el servidor de PostgreSQL está listo para aceptar conexiones.
-      test: ["CMD-SHELL", "pg_isready -U portfolio_user -d portfolio_db"]
+      # Lee el usuario y la BD de los archivos de secrets para mayor consistencia.
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $$(cat /run/secrets/POSTGRES_USER) -d $$(cat /run/secrets/POSTGRES_DB)",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,16 +40,23 @@ services:
     build: ./redis
     container_name: redis_cache
     restart: unless-stopped
-    env_file: .env # Añadir para que la variable de entorno esté disponible para el comando de sustitución
+    secrets:
+      - REDIS_PASSWORD
     volumes:
       - redis_data:/data
-      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
-    command: >
-      sh -c "envsubst < /usr/local/etc/redis/redis.conf > /tmp/redis.conf && redis-server /tmp/redis.conf"
+    # Usamos sh -c para asegurar que la sustitución del comando se maneje correctamente,
+    # especialmente si la contraseña contiene caracteres especiales.
+    command: sh -c 'redis-server --requirepass "$$(cat /run/secrets/REDIS_PASSWORD)"'
     networks:
       - portfolio_network
     healthcheck:
-      test: ["CMD", "sh", "-c", "redis-cli -a $$REDIS_PASSWORD ping"]
+      test:
+        [
+          "CMD",
+          "sh",
+          "-c",
+          'redis-cli -a "$$(cat /run/secrets/REDIS_PASSWORD)" ping',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -49,18 +66,26 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: backend
+    secrets:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - JWT_SECRET
+      - JWT_REFRESH_SECRET
+      - REDIS_PASSWORD
+      - POSTGRES_DB
     environment:
       NODE_ENV: production
       DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_NAME: ${POSTGRES_DB}
+      DB_PORT: 5432 # Dentro de la red de Docker, siempre se conecta al puerto interno.
+      DB_USER_FILE: /run/secrets/POSTGRES_USER
+      DB_PASSWORD_FILE: /run/secrets/POSTGRES_PASSWORD
+      DB_NAME_FILE: /run/secrets/POSTGRES_DB
       REDIS_HOST: redis
-      REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      PORT: 3000
+      REDIS_PORT: 6379 # Dentro de la red de Docker, siempre se conecta al puerto interno.
+      REDIS_PASSWORD_FILE: /run/secrets/REDIS_PASSWORD
+      JWT_SECRET_FILE: /run/secrets/JWT_SECRET
+      JWT_REFRESH_SECRET_FILE: /run/secrets/JWT_REFRESH_SECRET
+      PORT: ${PORT:-3000} # Usa el puerto 3000 por defecto si PORT no está definido.
     networks:
       - portfolio_network
     depends_on:
@@ -69,7 +94,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-3000}/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -80,14 +105,16 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
     container_name: frontend_app
     restart: unless-stopped
+    secrets:
+      - VITE_API_BASE_URL
     networks:
       - portfolio_network
     depends_on:
       - backend
+    ports:
+      - "${FRONT_PORT:-80}:80" # Usa el puerto 80 por defecto si FRONT_PORT no está definido.
     # Nginx no tiene un healthcheck simple por defecto, pero se puede añadir un endpoint en Nginx si es necesario.
 
   backup:
@@ -95,11 +122,15 @@ services:
       context: ./backup
       dockerfile: Dockerfile
     container_name: db_backup
+    secrets:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
     environment:
       POSTGRES_HOST: postgres
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER_FILE: /run/secrets/POSTGRES_USER
+      POSTGRES_PASSWORD_FILE: /run/secrets/POSTGRES_PASSWORD
+      POSTGRES_DB_FILE: /run/secrets/POSTGRES_DB
       TZ: Europe/Madrid # Zona horaria (opcional)
     volumes:
       - backups_data:/backup
@@ -124,3 +155,19 @@ volumes:
 networks:
   portfolio_network:
     driver: bridge
+
+secrets:
+  POSTGRES_USER:
+    file: ./secrets/POSTGRES_USER
+  POSTGRES_PASSWORD:
+    file: ./secrets/POSTGRES_PASSWORD
+  POSTGRES_DB:
+    file: ./secrets/POSTGRES_DB
+  REDIS_PASSWORD:
+    file: ./secrets/REDIS_PASSWORD
+  JWT_SECRET:
+    file: ./secrets/JWT_SECRET
+  JWT_REFRESH_SECRET:
+    file: ./secrets/JWT_REFRESH_SECRET
+  VITE_API_BASE_URL:
+    file: ./secrets/VITE_API_BASE_URL

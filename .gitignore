@@ -14,6 +14,7 @@ docker-compose.local.yml
 # Se mantiene .env.example para que otros desarrolladores sepan qué variables se necesitan.
 .env
 .env.*
+secrets/
 !.env.example
 
 # Archivos de registro (logs)
