@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  pgtap:
+    # Usamos una imagen que ya contiene las herramientas de cliente de pgTAP (pg_prove)
+    image: hbpmip/pgtap:latest
+    container_name: pgtap_runner
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - portfolio_network
+    environment:
+      - PGHOST=postgres
+      - PGPORT=5432
+    secrets:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
+    volumes:
+      - ./tests/db:/test
+    # Sobrescribimos el entrypoint para evitar que la imagen intente conectar a 'db' por defecto
+    # Usamos entrypoint vacío para limpiar cualquier configuración de la imagen
+    entrypoint: []
+    # Definimos el comando como una lista para evitar errores de parsing en Windows
+    command:
+      - /bin/sh
+      - -c
+      - |
+        export PGPASSWORD=$$(cat /run/secrets/POSTGRES_PASSWORD)
+        pg_prove -h postgres -U "$$(cat /run/secrets/POSTGRES_USER)" -d "$$(cat /run/secrets/POSTGRES_DB)" /test/*.sql
+
+secrets:
+  POSTGRES_USER:
+    file: ./secrets/POSTGRES_USER
+  POSTGRES_PASSWORD:
+    file: ./secrets/POSTGRES_PASSWORD
+  POSTGRES_DB:
+    file: ./secrets/POSTGRES_DB
