@@ -47,15 +47,16 @@ const config = {
     nodeEnv: getConfigValue("NODE_ENV", false) || "development",
   },
   database: {
-    host: getConfigValue("DB_HOST"),
-    port: Number(getConfigValue("DB_PORT")),
-    user: getConfigValue("DB_USER"),
-    password: getConfigValue("DB_PASSWORD"),
-    name: getConfigValue("DB_NAME"),
+    host: "localhost",
+    port: 5432,
+    dialect: "postgres",
+    user: getConfigValue("POSTGRES_USER"),
+    password: getConfigValue("POSTGRES_PASSWORD"),
+    name: getConfigValue("POSTGRES_DB"),
   },
   redis: {
-    host: getConfigValue("REDIS_HOST"),
-    port: Number(getConfigValue("REDIS_PORT")),
+    host: "localhost",
+    port: 6379,
     password: getConfigValue("REDIS_PASSWORD"),
   },
   jwt: {

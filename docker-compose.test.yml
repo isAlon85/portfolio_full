@@ -18,7 +18,7 @@ services:
       - POSTGRES_PASSWORD
       - POSTGRES_DB
     volumes:
-      - ./tests/db:/test
+      - ./postgres/tests:/test
     # Sobrescribimos el entrypoint para evitar que la imagen intente conectar a 'db' por defecto
     # Usamos entrypoint vacío para limpiar cualquier configuración de la imagen
     entrypoint: []
