@@ -101,7 +101,7 @@ Se implementan comprobaciones de salud para asegurar que los servicios dependien
 
 - `backend/`: Código fuente del servidor Node.js.
 - `frontend/`: Código fuente de la aplicación Vite.
-- `postgres/`: Dockerfile personalizado y scripts de inicialización (`01-enable-pgtap.sql`).
+- `postgres/`: Dockerfile personalizado y scripts de inicialización (`001-enable-pgtap.sql`).
 - `tests/db/`: Scripts SQL para las pruebas de pgTAP.
 - `backup/`: Configuración del servicio de copias de seguridad.
 - `secrets/`: Almacenamiento de credenciales (no incluido en el control de versiones).
